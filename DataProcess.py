@@ -275,7 +275,7 @@ def  get_train_test_iter(sample_nums ,train_data_nums,sample_length,batch_size):
 
 
 #获取训练集 的样本 和 标签
-def get_train_features_and_labels(sample_nums ,train_data_nums,sample_length):
+def get_features_and_labels(sample_nums ,train_data_nums,sample_length):
 
     #--------------------------------------------------------------------------
     #制作正常轴承的 测试训练集
@@ -335,14 +335,27 @@ def get_train_features_and_labels(sample_nums ,train_data_nums,sample_length):
                                         inner7_train_labels,ball7_train_labels,outer7_train_labels,
                                         inner14_train_labels,ball14_train_labels,outer14_train_labels,
                                         inner21_train_labels,ball21_train_labels,outer21_train_labels,)
+
+    test_features =compose_sample_subset(normal_test_data,
+                                         inner7_test_data,ball7_test_data,outer7_test_data,
+                                         inner14_test_data,ball14_test_data,outer14_test_data,
+                                         inner21_test_data,ball21_test_data,outer21_test_data)
+
+    test_labels =compose_labels_subset(normal_test_labels,
+                                       inner7_test_labels,ball7_test_labels,outer7_test_labels,
+                                       inner14_test_labels,ball14_test_labels,outer14_test_labels,
+                                       inner21_test_labels,ball21_test_labels,outer21_test_labels)
     #拼接成一个完整的没有打乱的大数据集
     train_dataset =combine_dataset(train_features,train_labels)
+    test_dataset =combine_dataset(test_features,test_labels)
     #======================================提前打乱数据集======================================
     #打乱训练集
     np.random.shuffle(train_dataset)
     train_dataset =np.array(train_dataset,dtype =np.float32)
 
-
+    #打乱测试集
+    np.random.shuffle(test_dataset)
+    test_dataset =np.array(test_dataset,dtype =np.float32)
     #=================================升维度，转成tensor==================================
     #训练集：
     #先把标签特征打乱后没分开的训练集转成tensor
@@ -355,13 +368,25 @@ def get_train_features_and_labels(sample_nums ,train_data_nums,sample_length):
     tensor_train_labels =tensor_train_dataset[:,-1]
 
 
-    return tensor_train_features,tensor_train_labels
+    #测试集：
+    tensor_test_dataset =torch.from_numpy(test_dataset)
+    #样本升维，使其满足一维卷积神经网络输入要求
+    tensor_test_features = tensor_test_dataset[:,:1024]
+    tensor_test_features = tensor_test_features.view(tensor_test_features.shape[0],1,tensor_test_features.shape[1])
 
+    #取出打乱后的labels
+    tensor_test_labels =tensor_test_dataset[:,-1]
+
+
+
+
+
+    return tensor_train_features,tensor_train_labels,tensor_test_features,tensor_test_labels
 
 
 
 if __name__ =='__main__':
-    train_features,train_labels =get_train_features_and_labels(2000,1600,1024)
+    train_features,train_labels,_,_ =get_features_and_labels(2000,1600,1024)
 
 
 
