@@ -26,7 +26,6 @@ device =torch.device('cuda'if torch.cuda.is_available() else 'cpu')
 
 #将训练集再做K折交叉验证
 # 下面实现了一个函数，它返回第i折交叉验证时所需要的训练和验证数据。
-
 def get_k_fold_data(k, i, train_features, train_labels):#k:几折，i：第i个子集作为验证集 train:
     '''k:几折，i：第i个子集作为验证集 train:_features：最初训练集样本，trian_labels：训练集标签'''
     # 返回第i折交叉验证时所需要的训练和验证数据
@@ -64,26 +63,28 @@ def k_fold(k, train_features, train_labels, num_epochs,lr,weight_decay, batch_si
     for i in range(k):#相当于K个测试集-验证集 循环K次
 
         net =get_net()#必须保证每次模型都得重新创建
+        print(id(net))
         data = get_k_fold_data(k, i, train_features, train_labels)# 获取K折交叉验证所用的测试集验证集数据     data此时应该是一个元组 的形式
 
 
-        train_ls, valid_ls = train(net, *data,num_epochs,lr,weight_decay,device,batch_size)#K折 i折验证的 训练集误差 和验证集误差
+        train_ls, valid_ls,train_acc,valid_acc = train(net, *data,num_epochs,lr,weight_decay,device,batch_size)#K折 i折验证的 训练集误差 和验证集误差
 
         train_l_sum += train_ls[-1]#对 把 计算第K折训练集上的误差  累加给 训练总误差
         valid_l_sum += valid_ls[-1]#第K折验证集上的 误差同理
-        # if i == 0:#画出第i==0次 训练集-rmse  验证集-rmse 对数图
-        #     myplot.draw_loss(range(1, num_epochs + 1), train_ls, 'epochs', 'loss',
-        #                   range(1, num_epochs + 1), valid_ls,
-        #                   ['train', 'valid'])
+        if i == 0:#画出第i==0次 训练集-rmse  验证集-rmse 对数图
+            myplot.draw_loss(range(1, num_epochs + 1), train_ls, 'epochs', 'loss',
+                          range(1, num_epochs + 1), valid_ls,
+                          ['train', 'valid'])
 
-        print('fold %d, train avg_loss %f, valid avg_loss %f' % (i, train_ls[-1], valid_ls[-1]))#
+        print('fold %d, train loss %f, valid loss %f' % (i, train_ls[-1], valid_ls[-1]))#
+        print('fold %d, train acc %f, valid acc %f' % (i, train_acc[-1], valid_acc[-1]))
 
     return train_l_sum / k, valid_l_sum / k #返回的是在K折交叉验证的平均误差
 
-def train(net,X_train,y_train,X_vaild,y_valid,num_epochs,lr,weight_decay,device,batch_size):
+def train(net,X_train,y_train,X_,y_valid,num_epochs,lr,weight_decay,device,batch_size):
     net =net.to(device)
     print('Training on ',device)
-    loss =torch.nn.CrossEntropyLoss()#默认使用交叉熵损失函数
+
     optimizer =torch.optim.Adam(net.parameters(),lr,weight_decay=0)
 
 
@@ -91,17 +92,28 @@ def train(net,X_train,y_train,X_vaild,y_valid,num_epochs,lr,weight_decay,device,
     train_dataset =torch.utils.data.TensorDataset(X_train,y_train)
     train_iter =torch.utils.data.DataLoader(train_dataset,batch_size,shuffle=True)
     #制作验证集dataloader
-    vaild_dataset =torch.utils.data.TensorDataset(X_vaild,y_valid)
-    vaild_iter =torch.utils.data.DataLoader(vaild_dataset,batch_size,shuffle=True)
+    valid_dataset =torch.utils.data.TensorDataset(X_,y_valid)
+    valid_iter =torch.utils.data.DataLoader(valid_dataset,batch_size,shuffle=True)
 
-    train_ls =[]
-    train_l_sum,train_batch_count =0.0,0
-    vaild_ls=[]
-    vaild_l_sum,vaild_batch_count =0.0,0
+    train_ls =[]#存放每个epoch训练集loss
+    valid_ls=[]#存放每个epoch验证集loss
+
+    train_acc=[]#存放每个epoch的训 练集正确率
+    valid_acc=[]#存放每个epoch 验证集正确率
+
+
+
 
     for epoch in range(num_epochs):
 
-        net.train()
+        train_l_sum,train_batch_count =0.0,0#train_l_sum是所有epoch中所有batch的loss和
+        train_acc_sum ,train_n=0,0# train_acc_sum是 epoch结束后 总的正确个数
+
+
+
+        valid_l_sum,valid_batch_count =0.0,0
+        valid_acc_sum,valid_n =0,0
+
 #只关注loss！
         for X,y in train_iter:
             X = X.to(device)#先将需要计算的添加到 cuda
@@ -114,25 +126,37 @@ def train(net,X_train,y_train,X_vaild,y_valid,num_epochs,lr,weight_decay,device,
             optimizer.zero_grad()#优化器梯度清0
             l.backward()#误差反向传播
             optimizer.step()#梯度更新
-            train_l_sum += l.cpu().item()#计算得到的误差可能再GPU上先移动到CPU转成pyton数字
+
+            train_l_sum += l.cpu().item()#计算得到的误差可能再GPU上先移动到CPU转成pyton数字 #这里的train_l_sum是这个epoch内，每个batch的loss累加
+            train_acc_sum += (y_hat.argmax(dim=1) == y).float().sum().cpu().item()#训练集正确总数
+
             train_batch_count += 1
+            train_n +=y.shape[0]#累加，训练样本的个数（通过一个batch，一个batch把y有多少行进行累加的）
 
         train_ls.append(train_l_sum/train_batch_count)#对一个epoch里 所有batch的loss求平均放到train loss里
+        train_acc.append(train_acc_sum/train_n)
+
 
         with torch.no_grad():
-            for X,y in vaild_iter:
+            for X,y in valid_iter:
                 net.eval()#关闭dropout 进入评估模式
+
                 X= X.to(device)
                 y= y.to(device)
 
-                vaild_l_sum += loss(net(X),y.long()).cpu().item()
+                valid_l_sum += loss(net(X),y.long()).cpu().item()
+                valid_acc_sum +=  (net(X).argmax(dim =1)==y) .float().sum().cpu().item()
 
-                vaild_batch_count += 1
+                valid_batch_count += 1
+                valid_n += y.shape[0]
+
+
                 net.train()
 
-            vaild_ls.append(vaild_l_sum/vaild_batch_count)
+            valid_ls.append(valid_l_sum/valid_batch_count)
+            valid_acc.append(valid_acc_sum/valid_n)
 
-    return train_ls, vaild_ls
+    return train_ls, valid_ls,train_acc,valid_acc
 
 
 
@@ -227,19 +251,19 @@ full_connect =nn.Sequential(
 
 #==============================================================================
 
-
-
-
 def get_net():
     net =nn.Sequential(conv1,conv2,inception,nin,flatten,full_connect)
     return net
 
-batch_size=64
+loss =torch.nn.CrossEntropyLoss()#默认使用交叉熵损失函数
+
+batch_size=128
 
 train_features,train_labels,_,_ =DP.get_features_and_labels(2000, 1600, 1024)
-k=10
-num_epochs=5
+k=5
+num_epochs=50
 lr=0.0001
 weight_decay =0
 
 K_train_loss,K_valid_loss=k_fold(k, train_features, train_labels, num_epochs,lr,weight_decay, batch_size,device)
+print('%d-fold validation: avg train rmse %f, avg valid rmse %f' % (k, K_train_loss, K_valid_loss))

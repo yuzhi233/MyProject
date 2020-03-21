@@ -19,7 +19,7 @@ def set_figsize(figsize=(3.5, 2.5)):
 
 #这个可以调用
 def draw_loss(x_vals, y_vals, x_label, y_label, x2_vals=None, y2_vals=None,legend=None, figsize=(3.5, 2.5)):
-    plt.figure(1)
+    plt.figure()
     set_figsize(figsize)
     plt.xlabel(x_label)
     plt.ylabel(y_label)
