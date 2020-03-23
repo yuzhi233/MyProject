@@ -33,7 +33,7 @@ def draw_loss(x_vals, y_vals, x_label, y_label, x2_vals=None, y2_vals=None,legen
 
 
 def draw_accuracy(x_vals, y_vals, x_label, y_label, x2_vals=None, y2_vals=None,legend=None, figsize=(3.5, 2.5)):
-    plt.figure(2)
+    plt.figure()
     set_figsize(figsize)
     plt.xlabel(x_label)
     plt.ylabel(y_label)
@@ -44,7 +44,7 @@ def draw_accuracy(x_vals, y_vals, x_label, y_label, x2_vals=None, y2_vals=None,l
 #------------------------------------------------------------------------------
 
 
-#----------------------------画淆矩阵图-----------------------------------------
+#----------------------------计算混淆矩阵-----------------------------------------
 def confusion_matrix(preds,labels,conf_matrix):#传入的prebs是argmax后的
     preds =preds.int()
     labels =labels.int()
