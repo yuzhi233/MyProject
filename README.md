@@ -1,5 +1,5 @@
 # MyProject
-毕设
+啥也不是 头给你捶烂！！
 
 Models文件夹是程序运行中save的state_dict
 
