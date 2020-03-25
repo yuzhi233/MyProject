@@ -18,4 +18,3 @@ else:
     print('卷积后尺寸为:',(size +2*padding-kernel_size)/stride +1)
 
 
-0

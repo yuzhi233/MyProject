@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Mar 24 10:03:22 2020
+Created on Wed Mar 25 10:23:28 2020
 
 @author: zhoubo
 """
+
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -55,17 +57,14 @@ class FlattenLayer_1d(nn.Module):
 
 # 卷积层1
 conv1 =nn.Sequential(nn.Conv1d(in_channels =1,out_channels =64,kernel_size=32,stride=8,padding=12),
-
                      nn.ReLU(),
                      nn.MaxPool1d(kernel_size=2,stride=2)
                      )
 
 # 卷积层2
 conv2 =nn.Sequential(nn.Conv1d(in_channels=64,out_channels=128,kernel_size=1),
-
                      nn.ReLU(),
                       nn.Conv1d(in_channels =128,out_channels=192,kernel_size=2,stride=2),
-
                       nn.ReLU(),
                       nn.MaxPool1d(kernel_size=2,stride =2)
                      )
@@ -77,10 +76,8 @@ inception =nn.Sequential(Inception_1d(in_c =192,c1 =64,c2=(96,128),c3=(16,32),c4
 
 # nin 层
 nin =nn.Sequential(nn.Conv1d(in_channels=480,out_channels=256,kernel_size=1),
-
                    nn.ReLU(),
                    nn.Conv1d(in_channels=256,out_channels=128,kernel_size=1),
-
                    nn.ReLU(),
                    GlobalAvgPool1d()
                   )
@@ -90,14 +87,24 @@ flatten= FlattenLayer_1d()
 #全连接层
 full_connect =nn.Sequential(
                             nn.Linear(128,64),
-                            nn.BatchNorm1d(64),
                             nn.ReLU(),
                             # nn.Dropout(0.2),
                             nn.Linear(64,10),
-                            nn.BatchNorm1d(10),
                             nn.ReLU()
                             # nn.Dropout(0.2)
                             )
+
+
+
+
+
+
+
+
+
+
+
+
 
 def get_net():
     net =nn.Sequential(conv1,conv2,inception,nin,flatten,full_connect)
@@ -105,8 +112,3 @@ def get_net():
 
 
 
-# if __name__ =='__main__':
-#     import torch
-#     net =get_net()
-#     a= torch.randn(1,1,1024)
-#     print(net(a))

@@ -4,18 +4,15 @@ Created on Fri Mar 20 13:41:30 2020
 
 @author: zhoubo
 """
-import torch
 
+import torch
 import time
 import DataProcess as DP
-
 import torch.nn as nn
-import time
-import torch.nn.functional as F
 import myplot
-import numpy as np
-import myplot
-from matplotlib import pyplot as plt
+import TestModel2
+
+
 
 
 device =torch.device('cuda'if torch.cuda.is_available() else 'cpu')
@@ -90,6 +87,9 @@ def k_fold(k, train_features, train_labels, num_epochs,lr,weight_decay, batch_si
     print('time:',time.time()-time_start)
     return train_l_sum / k, valid_l_sum / k,best_net,K_best_conf_matrix #返回的是在K折交叉验证的平均误差，#返回的net_record是K折 每一折 loss最低时候的net的states-dict,best_conf_matix是每一折中loss最低时候的混淆矩阵
 
+
+
+#注意运行该 需要在程序里定义一个get_net()函数来获取模型！！！！！
 def train(net,X_train,y_train,X_,y_valid,num_epochs,lr,weight_decay,device,batch_size):
     net =net.to(device)
     print('Training on ',device)
@@ -124,7 +124,7 @@ def train(net,X_train,y_train,X_,y_valid,num_epochs,lr,weight_decay,device,batch
         valid_l_sum,valid_batch_count =0.0,0
         valid_acc_sum,valid_n =0,0
 
-#只关注loss！
+
         for X,y in train_iter:
             X = X.to(device)#先将需要计算的添加到 cuda
             y = y.to(device)#同上
@@ -199,109 +199,40 @@ def train(net,X_train,y_train,X_,y_valid,num_epochs,lr,weight_decay,device,batch
 
 
 
-class Inception_1d(nn.Module):
-    def __init__(self,in_c,c1,c2,c3,c4):#in_c是输入的通道 c1 c2 c3 c
-        super(Inception_1d,self).__init__()
-        #线路1 1x1 卷积层
-        self.p1_1 =nn.Conv1d(in_c,c1,kernel_size=1)
-
-        #线路2 1x1卷积层 跟1x3卷积
-        self.p2_1 =nn.Conv1d(in_c,c2[0],kernel_size=1)
-        self.p2_2 =nn.Conv1d(c2[0],c2[1],kernel_size=3,padding=1,stride=1)
-        # #线路3 1x1卷积 跟1x5卷积层
-        self.p3_1 =nn.Conv1d(in_c,c3[0],kernel_size=1)
-        self.p3_2 =nn.Conv1d(c3[0],c3[1],kernel_size=5,padding=2,stride=1)
-        # #线路4 1d最大池化 后跟1x1卷积
-        self.p4_1 =nn.MaxPool1d(kernel_size=3,padding=1,stride=1)
-        self.p4_2 =nn.Conv1d(in_c,c4,kernel_size=1)
-
-
-    def forward(self,X):
-        p1 =F.relu(self.p1_1(X))
-        p2 =F.relu(self.p2_2(F.relu(self.p2_1(X))))
-        p3 =F.relu(self.p3_2(F.relu(self.p3_1(X))))
-        p4 =F.relu(self.p4_2(self.p4_1(X)))
-
-        # return p4.shape
-        return torch.cat((p1, p2, p3, p4), dim=1)  # 在通道维上连结输出
-
-class GlobalAvgPool1d(nn.Module):
-
-    def __init__(self):
-        super(GlobalAvgPool1d,self).__init__()
-
-
-    def forward(self,x):
-
-        return F.avg_pool1d(x,kernel_size =(x.shape[2],))#这里！
-
-class FlattenLayer_1d(nn.Module):
-    def __init__(self):
-        super(FlattenLayer_1d, self).__init__()
-        print('调用FLATTEN')
-    def forward(self, x): # x shape: (batch, *, *, ...)
-        return x.view(x.shape[0], -1)
-
-
-
-# 卷积层1
-conv1 =nn.Sequential(nn.Conv1d(in_channels =1,out_channels =64,kernel_size=32,stride=8,padding=12),
-                     nn.ReLU(),
-                     nn.MaxPool1d(kernel_size=2,stride=2)
-                     )
-
-# 卷积层2
-conv2 =nn.Sequential(nn.Conv1d(in_channels=64,out_channels=128,kernel_size=1),
-                     nn.ReLU(),
-                      nn.Conv1d(in_channels =128,out_channels=192,kernel_size=2,stride=2),
-                      nn.ReLU(),
-                      nn.MaxPool1d(kernel_size=2,stride =2)
-                     )
-
-# inception层
-inception =nn.Sequential(Inception_1d(in_c =192,c1 =64,c2=(96,128),c3=(16,32),c4=32),
-                         Inception_1d(in_c =256,c1 =128,c2=(128,192),c3=(32,96),c4=64)
-                         )
-
-# nin 层
-nin =nn.Sequential(nn.Conv1d(in_channels=480,out_channels=256,kernel_size=1),
-                   nn.ReLU(),
-                   nn.Conv1d(in_channels=256,out_channels=128,kernel_size=1),
-                   nn.ReLU(),
-                   GlobalAvgPool1d()
-                  )
-#flatten层
-flatten= FlattenLayer_1d()
-
-
-#全连接层
-full_connect =nn.Sequential(
-                            nn.Linear(128,64),
-                            nn.ReLU(),
-                            # nn.Dropout(0.2),
-                            nn.Linear(64,10),
-                            nn.ReLU()
-                            # nn.Dropout(0.2)
-                            )
-
-#==============================================================================
-
 def get_net():
-    net =nn.Sequential(conv1,conv2,inception,nin,flatten,full_connect)
-    return net
+    return TestModel2.get_net()
 
+
+
+
+
+if __name__ =='__main__':
+
+
+train_features,train_labels,test_features,test_labels =DP.get_features_and_labels(2000, 1600, 1024)
+
+#定义损失函数
 loss =torch.nn.CrossEntropyLoss()#默认使用交叉熵损失函数
 
-batch_size=256
 
-train_features,train_labels,_,_ =DP.get_features_and_labels(2000, 1600, 1024)
-k=5
-num_epochs=5
+
+batch_size=256
+k=2
+num_epochs=3
 lr=0.0001
 weight_decay =0
 
-
+#初始化混淆矩阵
 confuse_matrix =torch.zeros(10,10)
 
+#--------------------------K折交叉验证----------------------------------------
 K_train_loss,K_valid_loss,best_net,conf_matrix=k_fold(k, train_features, train_labels, num_epochs,lr,weight_decay, batch_size,device)
 print('%d-fold validation: avg train loss %f, avg valid loss %f' % (k, K_train_loss, K_valid_loss))
+
+
+
+
+
+
+
+

@@ -116,7 +116,7 @@ def split_train_test_data(file_path,sample_nums =2000,train_data_nums=1600,sampl
     file_data = pd.read_csv(file_path)
 
     #对源数据(此时读取到的filedata是DataFrame)进行归一化 此时filedata还是n行一列的DataFrame
-    # file_data = data_normalize(file_data)
+    file_data = data_normalize(file_data)
 
     #数据类型转换
     file_data = file_data.values #将filedata的这一列取出来---->变成了numpy数组 的array类型
@@ -279,8 +279,8 @@ def get_features_and_labels(sample_nums ,train_data_nums,sample_length):
 
     #--------------------------------------------------------------------------
     #制作正常轴承的 测试训练集
-    file_path1 ='D:\\SPYDER_CODE\\MyProject\\DataSetA\\1.csv'
-    # file_path1 ='D:\SPYDER_CODE\MyProject\DataSetA\X098_DE_time.csv'
+    # file_path1 ='D:\\SPYDER_CODE\\MyProject\\DataSetA\\1.csv'#测试用
+    file_path1 ='D:\SPYDER_CODE\MyProject\DataSetA\X098_DE_time.csv'
     #划分数据集 -----这一步结束后是numpy数组
     normal_train_data,normal_test_data =split_train_test_data(file_path1,sample_nums ,train_data_nums,sample_length)
     #制作数据集标签
