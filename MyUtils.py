@@ -90,7 +90,7 @@ def get_k_fold_data(k, i, train_features, train_labels):#k:几折，i：第i个�
 
 
 #注意运行该 需要在程序里定义一个get_net()函数来获取模型！！！！！
-def train(net,X_train,y_train,X_,y_valid,num_epochs,lr,weight_decay,device,batch_size):
+def train(net,X_train,y_train,X_valid,y_valid,num_epochs,lr,weight_decay,device,batch_size):
     net =net.to(device)
     print('Training on ',device)
 
@@ -102,7 +102,7 @@ def train(net,X_train,y_train,X_,y_valid,num_epochs,lr,weight_decay,device,batch
     train_dataset =torch.utils.data.TensorDataset(X_train,y_train)
     train_iter =torch.utils.data.DataLoader(train_dataset,batch_size,shuffle=True)
     #制作验证集dataloader
-    valid_dataset =torch.utils.data.TensorDataset(X_,y_valid)
+    valid_dataset =torch.utils.data.TensorDataset(X_valid,y_valid)
     valid_iter =torch.utils.data.DataLoader(valid_dataset,batch_size,shuffle=True)
 
     train_ls =[]#存放每个epoch训练集loss
@@ -229,3 +229,8 @@ def k_fold(k, train_features, train_labels, num_epochs,lr,weight_decay, batch_si
 
 
 #------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
