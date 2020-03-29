@@ -9,42 +9,13 @@ Created on Wed Mar 25 10:23:28 2020
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-#这里放模型
-class Inception_1d(nn.Module):
-    def __init__(self,in_c,c1,c2,c3,c4):#in_c是输入的通道 c1 c2 c3 c
-        super(Inception_1d,self).__init__()
-        #线路1 1x1 卷积层
-        self.p1_1 =nn.Conv1d(in_c,c1,kernel_size=1)
+import DataProcess as DP
+import myutils
+import myplot
+from torch.nn import init
+import time
 
-        #线路2 1x1卷积层 跟1x3卷积
-        self.p2_1 =nn.Conv1d(in_c,c2[0],kernel_size=1)
-        self.p2_2 =nn.Conv1d(c2[0],c2[1],kernel_size=3,padding=1,stride=1)
-        # #线路3 1x1卷积 跟1x5卷积层
-        self.p3_1 =nn.Conv1d(in_c,c3[0],kernel_size=1)
-        self.p3_2 =nn.Conv1d(c3[0],c3[1],kernel_size=5,padding=2,stride=1)
-        # #线路4 1d最大池化 后跟1x1卷积
-        self.p4_1 =nn.MaxPool1d(kernel_size=3,padding=1,stride=1)
-        self.p4_2 =nn.Conv1d(in_c,c4,kernel_size=1)
-
-
-    def forward(self,X):
-        p1 =F.relu(self.p1_1(X))
-        p2 =F.relu(self.p2_2(F.relu(self.p2_1(X))))
-        p3 =F.relu(self.p3_2(F.relu(self.p3_1(X))))
-        p4 =F.relu(self.p4_2(self.p4_1(X)))
-
-        # return p4.shape
-        return torch.cat((p1, p2, p3, p4), dim=1)  # 在通道维上连结输出
-
-class GlobalAvgPool1d(nn.Module):
-
-    def __init__(self):
-        super(GlobalAvgPool1d,self).__init__()
-
-
-    def forward(self,x):
-
-        return F.avg_pool1d(x,kernel_size =(x.shape[2],))#这里！
+device =torch.device('cuda'if torch.cuda.is_available() else 'cpu')
 
 class FlattenLayer_1d(nn.Module):
     def __init__(self):
@@ -55,60 +26,112 @@ class FlattenLayer_1d(nn.Module):
 
 
 
-# 卷积层1
-conv1 =nn.Sequential(nn.Conv1d(in_channels =1,out_channels =64,kernel_size=32,stride=8,padding=12),
-                     nn.ReLU(),
-                     nn.MaxPool1d(kernel_size=2,stride=2)
-                     )
+class MLP(nn.Module):
+    def  __init__(self):
+        super(MLP,self).__init__()
+        self.FC1 =nn.Sequential(
 
-# 卷积层2
-conv2 =nn.Sequential(nn.Conv1d(in_channels=64,out_channels=128,kernel_size=1),
-                     nn.ReLU(),
-                      nn.Conv1d(in_channels =128,out_channels=192,kernel_size=2,stride=2),
-                      nn.ReLU(),
-                      nn.MaxPool1d(kernel_size=2,stride =2)
-                     )
+                                nn.Linear(1024,2048),
+                                nn.BatchNorm1d(2048),
+                                nn.ReLU(),
+                                nn.Linear(2048,512),
+                                nn.BatchNorm1d(512),
+                                nn.ReLU(),
+                                nn.Linear(512,256),
+                                nn.BatchNorm1d(256),
+                                nn.ReLU(),
+                                nn.Linear(256,10),
+                                nn.BatchNorm1d(10),
+                                nn.ReLU(),
+                                # nn.Softmax(dim=1)
+                                )
+    def forward(self,X):
+        return self.FC1(X)
 
-# inception层
-inception =nn.Sequential(Inception_1d(in_c =192,c1 =64,c2=(96,128),c3=(16,32),c4=32),
-                         Inception_1d(in_c =256,c1 =128,c2=(128,192),c3=(32,96),c4=64)
-                         )
 
-# nin 层
-nin =nn.Sequential(nn.Conv1d(in_channels=480,out_channels=256,kernel_size=1),
-                   nn.ReLU(),
-                   nn.Conv1d(in_channels=256,out_channels=128,kernel_size=1),
-                   nn.ReLU(),
-                   GlobalAvgPool1d()
-                  )
-#flatten层
-flatten= FlattenLayer_1d()
+# X=torch.randn(10,1,1024)
+net =nn.Sequential( FlattenLayer_1d(),MLP())
+for params in net.parameters():
+    init.normal_(params, mean=0, std=0.01)
 
-#全连接层
-full_connect =nn.Sequential(
-                            nn.Linear(128,64),
-                            nn.ReLU(),
-                            # nn.Dropout(0.2),
-                            nn.Linear(64,10),
-                            nn.ReLU()
-                            # nn.Dropout(0.2)
-                            )
+batch_size =256
+weight_decay=0
+lr=0.01
+num_epochs =150
 
 
 
+train_features,train_labels,test_features,test_labels =DP.get_features_and_labels(2000, 1600, 1024)
+
+train_dataset =torch.utils.data.TensorDataset(train_features,train_labels)
+train_iter =torch.utils.data.DataLoader(train_dataset,batch_size,shuffle=True)
+test_dataset =torch.utils.data.TensorDataset(test_features,test_labels)
+test_iter =torch.utils.data.DataLoader(test_dataset,batch_size ,shuffle =True)
+
+train_ls, test_ls,train_acc,test_acc,net_record,best_conf_matrix=myutils.train(net,train_features,train_labels,test_features,test_labels,num_epochs,lr,weight_decay,device,batch_size)
+
+train_loss= train_ls[-1]#对存放train_ls的列表最后一个数拿出来  最后一个epoch的loss
+test_loss = test_ls[-1]
+
+myplot.draw_loss(range(1, num_epochs + 1), train_ls, 'epochs', 'loss',
+                      range(1, num_epochs + 1), test_ls,
+                      ['train', 'test'])
+myplot.draw_accuracy(range(1, num_epochs + 1), train_acc, 'epochs', 'acc',
+                      range(1, num_epochs + 1), test_acc,
+                      ['train', 'test'])
+
+
+print('train loss %f, valid loss %f' % ( train_loss, test_loss))
+print(' train acc %f, valid acc %f' % ( train_acc[-1], test_acc[-1]))
+
+# 本函数已保存在d2lzh_pytorch包中方便以后使用。该函数将被逐步改进。
+# def evaluate_accuracy(data_iter, net, device=None):
+#     if device is None and isinstance(net, torch.nn.Module):
+#         # 如果没指定device就使用net的device
+#         device = list(net.parameters())[0].device
+#     acc_sum, n = 0.0, 0
+#     with torch.no_grad():
+#         for X, y in data_iter:
+#             if isinstance(net, torch.nn.Module):
+#                 net.eval() # 评估模式, 这会关闭dropout
+#                 acc_sum += (net(X.to(device)).argmax(dim=1) == y.to(device)).float().sum().cpu().item()
+#                 net.train() # 改回训练模式
+
+#             n += y.shape[0]
+#     return acc_sum / n
+
+
+# # 本函数已保存在d2lzh_pytorch包中方便以后使用
+# def train_ch5(net, train_iter, test_iter, batch_size, optimizer, device, num_epochs):
+#     net = net.to(device)
+#     print("training on ", device)
+#     loss = torch.nn.CrossEntropyLoss()
+#     for epoch in range(num_epochs):
+#         train_l_sum, train_acc_sum, n, batch_count, start = 0.0, 0.0, 0, 0, time.time()
+#         for X, y in train_iter:
+#             X = X.to(device)
+#             y = y.to(device)
+#             y_hat = net(X)
+#             l = loss(y_hat, y.long())
+#             optimizer.zero_grad()
+#             l.backward()
+#             optimizer.step()
+#             train_l_sum += l.cpu().item()
+#             train_acc_sum += (y_hat.argmax(dim=1) == y).sum().cpu().item()
+#             n += y.shape[0]
+#             batch_count += 1
+#         test_acc = evaluate_accuracy(test_iter, net)
+#         print('epoch %d, loss %.4f, train acc %.3f, test acc %.3f, time %.1f sec'
+#               % (epoch + 1, train_l_sum / batch_count, train_acc_sum / n, test_acc, time.time() - start))
 
 
 
 
 
 
+# optimizer =torch.optim.Adam(net.parameters(),lr)
 
-
-
-
-def get_net():
-    net =nn.Sequential(conv1,conv2,inception,nin,flatten,full_connect)
-    return net
+# train_ch5(net, train_iter, test_iter, batch_size, optimizer, device, num_epochs)
 
 
 

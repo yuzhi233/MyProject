@@ -119,6 +119,9 @@ def train(net,X_train,y_train,X_valid,y_valid,num_epochs,lr,weight_decay,device,
         valid_l_sum,valid_batch_count =0.0,0
         valid_acc_sum,valid_n =0,0
 
+        time_start =time.time()
+
+
         for X,y in train_iter:
             X = X.to(device)#先将需要计算的添加到 cuda
             y = y.to(device)#同上
@@ -136,6 +139,8 @@ def train(net,X_train,y_train,X_valid,y_valid,num_epochs,lr,weight_decay,device,
 
             train_batch_count += 1
             train_n +=y.shape[0]#累加，训练样本的个数（通过一个batch，一个batch把y有多少行进行累加的）
+
+        print('epoch %d, train_loss %.4f, train acc %.3f'% (epoch + 1, train_l_sum / train_batch_count, train_acc_sum / train_n),end='')
 
         train_ls.append(train_l_sum/train_batch_count)#对一个epoch里 所有batch的loss求平均放到train loss里
         train_acc.append(train_acc_sum/train_n)
@@ -166,7 +171,7 @@ def train(net,X_train,y_train,X_valid,y_valid,num_epochs,lr,weight_decay,device,
 
                 confuse_matrix =myplot.confusion_matrix(net(X).argmax(dim =1),y,confuse_matrix)
                 net.train()
-
+            print('valid_loss %.4f, test acc %.3f ,time %d'% ( valid_l_sum / valid_batch_count,valid_acc_sum / valid_n,time.time()-time_start))
             valid_ls.append(valid_l_sum/valid_batch_count)
             valid_acc.append(valid_acc_sum/valid_n)
 

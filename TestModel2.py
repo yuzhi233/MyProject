@@ -55,18 +55,18 @@ class FlattenLayer_1d(nn.Module):
 
 # 卷积层1
 conv1 =nn.Sequential(nn.Conv1d(in_channels =1,out_channels =64,kernel_size=32,stride=8,padding=12),
-                     nn.BatchNorm1d(64),
+                     # nn.BatchNorm1d(64),
                      nn.ReLU(),
                      nn.MaxPool1d(kernel_size=2,stride=2)
                      )
 
 # 卷积层2
 conv2 =nn.Sequential(nn.Conv1d(in_channels=64,out_channels=128,kernel_size=1),
-                     nn.BatchNorm1d(128),
+                     # nn.BatchNorm1d(128),
                      nn.ReLU(),
 
                      nn.Conv1d(in_channels =128,out_channels=192,kernel_size=2,stride=2),
-                     nn.BatchNorm1d(192),
+                     # nn.BatchNorm1d(192),
                      nn.ReLU(),
                      nn.MaxPool1d(kernel_size=2,stride =2)
                      )

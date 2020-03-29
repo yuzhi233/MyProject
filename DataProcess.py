@@ -129,6 +129,7 @@ def split_train_test_data(file_path,sample_nums =2000,train_data_nums=1600,sampl
 
     #计算一下截取需要的步长
     slice_stride =calculate_stride(file_data_length,sample_length,sample_nums)
+    # slice_stride =200
 
     assert slice_stride > 0#只有步长大于0的时候才能正常运行
 
@@ -387,7 +388,7 @@ def get_features_and_labels(sample_nums ,train_data_nums,sample_length):
 
 
 if __name__ =='__main__':
-    train_features,train_labels,_,_ =get_features_and_labels(2000,1600,1024)
+    train_features,train_labels,_,_ =get_features_and_labels(800,600,1024)
 
 
 
